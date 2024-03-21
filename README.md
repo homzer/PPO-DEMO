@@ -12,7 +12,7 @@ python train.py
 python inference.py
 ```
 
-<video controls>
-  <source src="video/20230712220819.mp4" type="video/mp4">
-  Your browser does not support the video tag.
+
+<video id="video" controls="" preload="none" poster="">
+      <source id="mp4" src="video/20230712220819.mp4" type="video/mp4">
 </video>
