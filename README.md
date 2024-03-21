@@ -12,7 +12,4 @@ python train.py
 python inference.py
 ```
 
-
-<video id="video" controls="" preload="none" poster="">
-      <source id="mp4" src="video/20230712220819.mp4" type="video/mp4">
-</video>
+<video src="video/20230712220819.mp4" width="800px" height="600px" controls="controls"></video>
