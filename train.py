@@ -11,6 +11,7 @@ from src.env import create_multiprocess_env
 
 
 def run(
+        ckpt_file=None,  # "results/model-280.bin"
         save_dir: str = 'results'
 ):
     num_envs = mp.cpu_count()
@@ -32,7 +33,8 @@ def run(
     )
     collector = BufferCollector(args, env=env, policy=policy)
     trainer = Trainer(args, policy=policy)
-    trainer.load("results/model-280.bin")
+    if ckpt_file is not None:
+        trainer.load(ckpt_file)
 
     for epoch in range(args.epochs):
         rollout_buffer = collector.collect()
