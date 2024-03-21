@@ -12,4 +12,6 @@ python train.py
 python inference.py
 ```
 
-<video src="video/20230712220819.mp4" width="800px" height="600px" controls="controls"></video>
+## 📺Demo
+### Video
+https://github.com/homzer/PPO-DEMO/assets/65876923/a374ebba-113c-45c9-ac0a-45abcf6ef155
