@@ -1,11 +1,11 @@
+import collections
 import os
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 
 from src.args import ModelArgs
-from src.buffer import RolloutBuffer
+from src.buffer import MaskableRolloutBufferSamples
 from src.policy import ActorCritic, Model, Actor
 
 
@@ -13,6 +13,11 @@ class Trainer:
     def __init__(self, policy: Model, optimizer: torch.optim.Optimizer):
         self.policy = policy
         self.optimizer = optimizer
+
+    def _back_propagation(self, loss: torch.Tensor):
+        loss.backward()
+        self.optimizer.step()
+        self.optimizer.zero_grad()
 
     def load(self, ckpt_file: str):
         self.policy.load(ckpt_file)
@@ -26,64 +31,47 @@ class TrainerForActorCritic(Trainer):
     def __init__(self, args: ModelArgs, policy: ActorCritic, optimizer: torch.optim.Optimizer):
         super().__init__(policy, optimizer)
         self.args = args
+        self.clip_range = 0.07
 
-    def forward(self, rollout_buffer: RolloutBuffer):
+    def forward(self, rollout_data: MaskableRolloutBufferSamples):
         self.policy.train()
 
-        clip_range = 0.07  # TODO: schedule function
+        actions = rollout_data.actions.long().flatten()
+        values, log_prob, entropy = self.policy.evaluate_actions(
+            obs=rollout_data.observations,
+            actions=actions,
+            action_masks=rollout_data.action_masks
+        )
 
-        # For logging
-        entropy_losses = []
-        policy_losses = []
-        value_losses = []
-        losses = []
+        # Normalize advantage
+        advantages = rollout_data.advantages
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-        for _ in range(self.args.n_update_epochs):
-            for rollout_data in rollout_buffer.get(self.args.batch_size):
-                actions = rollout_data.actions.long().flatten()
+        # ratio between old and new policy, should be one at the first iteration
+        ratio = torch.exp(log_prob - rollout_data.old_log_prob)
+        # clipped surrogate loss
+        policy_loss_1 = advantages * ratio
+        policy_loss_2 = advantages * torch.clamp(ratio, 1 - self.clip_range, 1 + self.clip_range)
+        policy_loss = -torch.min(policy_loss_1, policy_loss_2).mean()
 
-                values, log_prob, entropy = self.policy.evaluate_actions(
-                    obs=rollout_data.observations,
-                    actions=actions,
-                    action_masks=rollout_data.action_masks
-                )
+        # Value loss using the TD(Temporal Difference)(gae_lambda) target
+        # Regression training for value function (or critic)
+        values = values.flatten()
+        value_loss = F.mse_loss(rollout_data.returns, values)
 
-                # Normalize advantage
-                advantages = rollout_data.advantages
-                advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        # Entropy loss favor exploration (smoothing action distribution)
+        entropy_loss = - torch.mean(entropy)
 
-                # ratio between old and new policy, should be one at the first iteration
-                ratio = torch.exp(log_prob - rollout_data.old_log_prob)
-                # clipped surrogate loss
-                policy_loss_1 = advantages * ratio
-                policy_loss_2 = advantages * torch.clamp(ratio, 1 - clip_range, 1 + clip_range)
-                policy_loss = -torch.min(policy_loss_1, policy_loss_2).mean()
+        loss = policy_loss + self.args.ent_coef * entropy_loss + self.args.vf_coef * value_loss
+        self._back_propagation(loss)
 
-                # Value loss using the TD(Temporal Difference)(gae_lambda) target
-                # Regression training for value function (or critic)
-                values = values.flatten()
-                value_loss = F.mse_loss(rollout_data.returns, values)
-
-                # Entropy loss favor exploration (smoothing action distribution)
-                entropy_loss = - torch.mean(entropy)
-
-                loss = policy_loss + self.args.ent_coef * entropy_loss + self.args.vf_coef * value_loss
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-
-                # logging
-                policy_losses.append(policy_loss.detach().cpu().numpy())
-                value_losses.append(value_loss.detach().cpu().numpy())
-                entropy_losses.append(entropy_loss.detach().cpu().numpy())
-                losses.append(loss.detach().cpu().numpy())
-
-        print("\n===============================")
-        print("train/entropy_loss", np.mean(entropy_losses))
-        print("train/policy_gradient_loss", np.mean(policy_losses))
-        print("train/value_loss", np.mean(value_losses))
-        print("train/loss", np.mean(losses))
-        print("===============================")
+        Outputs = collections.namedtuple("TrainerOutputs", ["entropy_loss", "policy_loss", "value_loss", "loss"])
+        return Outputs(
+            entropy_loss=entropy_loss.detach().cpu().item(),
+            policy_loss=policy_loss.detach().cpu().item(),
+            value_loss=value_loss.detach().cpu().item(),
+            loss=loss.detach().cpu().item()
+        )
 
     def predict(self, observation, action_masks=None):
         observation = torch.tensor(observation, dtype=torch.float32, device=self.args.device)

@@ -1,8 +1,17 @@
-from typing import Generator, Optional
+from typing import Generator, Optional, NamedTuple
 
 import numpy as np
 import torch
-from sb3_contrib.common.maskable.buffers import MaskableRolloutBufferSamples
+
+
+class MaskableRolloutBufferSamples(NamedTuple):
+    observations: torch.Tensor
+    actions: torch.Tensor
+    old_values: torch.Tensor
+    old_log_prob: torch.Tensor
+    advantages: torch.Tensor
+    returns: torch.Tensor
+    action_masks: torch.Tensor
 
 
 class RolloutBuffer:
@@ -158,3 +167,6 @@ class RolloutBuffer:
 
     def to_torch(self, array: np.ndarray):
         return torch.tensor(array, device=self.device)
+
+    def __len__(self):
+        return self.buffer_size * self.n_envs

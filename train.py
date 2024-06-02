@@ -10,6 +10,7 @@ from src.policy import ActorCritic
 from src.trainer import TrainerForActorCritic
 from src.collector import BufferCollector
 from src.env import create_multiprocess_env
+from src.utils import Timer
 
 
 def run(
@@ -39,9 +40,20 @@ def run(
     if ckpt_file is not None:
         trainer.load(ckpt_file)
 
+    timer = Timer(args.epochs)
     for epoch in range(args.epochs):
         rollout_buffer = collector.collect()
-        trainer.forward(rollout_buffer)
+        trainer_outputs = None
+        for _ in range(args.n_update_epochs):
+            for rollout_data in rollout_buffer.get(args.batch_size):
+                trainer_outputs = trainer.forward(rollout_data)
+        timer.step()
+        print("\n===============================")
+        print("train/entropy_loss", trainer_outputs.entropy_loss)
+        print("train/policy_gradient_loss", trainer_outputs.policy_loss)
+        print("train/value_loss", trainer_outputs.value_loss)
+        print("train/loss", trainer_outputs.loss)
+        print("===============================")
 
         if epoch % 100 == 0:
             seed_set = [random.randint(0, 1e5) for _ in range(args.num_envs)]
