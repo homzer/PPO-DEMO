@@ -31,8 +31,7 @@ def run(ckpt_file: str = "results/model-480.bin"):
                 if info["snake_size"] == env.game.grid_size:
                     print(f"You are BREATHTAKING! Victory reward: {reward:.4f}.")
                 else:
-                    last_action = ["UP", "LEFT", "RIGHT", "DOWN"][action]
-                    print(f"Gameover Penalty: {reward:.4f}. Last action: {last_action}")
+                    print(f"Game over Penalty: {reward:.4f}. Score: {info['score']}")
                 steps = 0
             elif info["food_obtained"]:
                 print(

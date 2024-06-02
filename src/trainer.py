@@ -9,7 +9,7 @@ from src.buffer import RolloutBuffer
 from src.policy import ActorCritic
 
 
-class Trainer:
+class TrainerForPpo:
     def __init__(self, args: ModelArgs, policy: ActorCritic):
         self.args = args
         self.policy = policy

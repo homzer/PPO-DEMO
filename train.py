@@ -5,7 +5,7 @@ import fire
 
 from src.args import ModelArgs
 from src.policy import ActorCritic
-from src.trainer import Trainer
+from src.trainer import TrainerForPpo
 from src.collector import BufferCollector
 from src.env import create_multiprocess_env
 
@@ -32,7 +32,7 @@ def run(
         [random.randint(0, 1e5) for _ in range(args.num_envs)]
     )
     collector = BufferCollector(args, env=env, policy=policy)
-    trainer = Trainer(args, policy=policy)
+    trainer = TrainerForPpo(args, policy=policy)
     if ckpt_file is not None:
         trainer.load(ckpt_file)
 

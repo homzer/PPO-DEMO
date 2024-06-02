@@ -111,7 +111,8 @@ class SnakeGame:
             "snake_head_pos": np.array(self.snake[0]),
             "prev_snake_head_pos": np.array(self.snake[1]),
             "food_pos": np.array(self.food),
-            "food_obtained": food_obtained
+            "food_obtained": food_obtained,
+            "score": self.score
         }
 
         return done, info

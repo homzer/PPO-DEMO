@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -5,6 +7,20 @@ import torch.nn as nn
 
 def logits_normalize(logits):
     return logits - torch.logsumexp(logits, dim=-1, keepdim=True)
+
+
+class Model(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def load(self, ckpt_file: str):
+        print(f"Loading model from {ckpt_file} ......")
+        self.load_state_dict(torch.load(ckpt_file))
+        print("Loading done")
+
+    def save(self, save_dir: str):
+        os.makedirs(save_dir, exist_ok=True)
+        torch.save(self.state_dict(), os.path.join(save_dir, "model.bin"))
 
 
 class NatureCNN(nn.Module):
@@ -42,7 +58,7 @@ class NatureCNN(nn.Module):
         return self.linear.forward(features)
 
 
-class ActorCritic(nn.Module):
+class ActorCritic(Model):
     def __init__(self, observation_space: tuple, num_actions: int, features_dim: int = 512):
         super().__init__()
         self.feature_extractor = NatureCNN(observation_space, features_dim)
