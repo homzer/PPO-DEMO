@@ -64,10 +64,6 @@ class ActorCritic(Model):
         self.feature_extractor = NatureCNN(observation_space, features_dim)
         self.action_net = nn.Linear(features_dim, num_actions)
         self.value_net = nn.Linear(features_dim, 1)
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-5)
-
-    def set_training_mode(self, mode: bool):
-        self.train(mode)
 
     def forward(self, obs, action_masks: np.ndarray = None):
         features = self.feature_extractor.forward(obs.float())
@@ -127,3 +123,21 @@ class ActorCritic(Model):
             actions = torch.multinomial(probs, num_samples=1).squeeze()
         actions = actions.cpu().numpy()
         return actions
+
+
+class Actor(Model):
+    def __init__(self, observation_space: tuple, num_actions: int, features_dim: int = 512):
+        super().__init__()
+        self.feature_extractor = NatureCNN(observation_space, features_dim)
+        self.action_net = nn.Linear(features_dim, num_actions)
+
+    def forward(self, obs, action_masks: np.ndarray = None):
+        features = self.feature_extractor.forward(obs.float())
+        logits = self.action_net.forward(features)
+        if action_masks is not None:
+            action_masks = torch.as_tensor(
+                action_masks, dtype=torch.float, device=logits.device
+            ).reshape(logits.shape)
+            logits += (1 - action_masks) * -1e5
+        logits = logits_normalize(logits)
+        return logits

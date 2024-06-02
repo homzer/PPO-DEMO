@@ -6,18 +6,28 @@ import torch.nn.functional as F
 
 from src.args import ModelArgs
 from src.buffer import RolloutBuffer
-from src.policy import ActorCritic
+from src.policy import ActorCritic, Model, Actor
 
 
-class TrainerForPpo:
-    def __init__(self, args: ModelArgs, policy: ActorCritic):
-        self.args = args
+class Trainer:
+    def __init__(self, policy: Model, optimizer: torch.optim.Optimizer):
         self.policy = policy
-        self.optimizer = torch.optim.Adam(
-            self.policy.parameters(), lr=args.lr
-        )
+        self.optimizer = optimizer
 
-    def train(self, rollout_buffer: RolloutBuffer):
+    def load(self, ckpt_file: str):
+        self.policy.load(ckpt_file)
+
+    def save(self, save_dir: str):
+        os.makedirs(save_dir, exist_ok=True)
+        torch.save(self.policy.state_dict(), os.path.join(save_dir, f"model.bin"))
+
+
+class TrainerForActorCritic(Trainer):
+    def __init__(self, args: ModelArgs, policy: ActorCritic, optimizer: torch.optim.Optimizer):
+        super().__init__(policy, optimizer)
+        self.args = args
+
+    def forward(self, rollout_buffer: RolloutBuffer):
         self.policy.train()
 
         clip_range = 0.07  # TODO: schedule function
@@ -82,10 +92,11 @@ class TrainerForPpo:
         # observation = _reshape_observation(observation)
         return self.policy.predict(observation, action_masks=action_masks)
 
-    def load(self, saved_dir: str):
-        state_dict = torch.load(saved_dir)
-        self.policy.load_state_dict(state_dict)
 
-    def save(self, saved_dir: str, name: str):
-        os.makedirs(saved_dir, exist_ok=True)
-        torch.save(self.policy.state_dict(), os.path.join(saved_dir, f"{name}.bin"))
+class TrainerForActor(Trainer):
+    def __init__(self, policy: Actor, optimizer: torch.optim.Optimizer):
+        super().__init__(policy, optimizer)
+
+    def forward(self, obs: torch.Tensor, action_masks: torch.Tensor = None):
+        self.policy.train()
+        self.policy.forward(obs, action_masks)

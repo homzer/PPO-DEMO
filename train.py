@@ -1,11 +1,13 @@
 import multiprocessing as mp
+import os
 import random
 
 import fire
+import torch
 
 from src.args import ModelArgs
 from src.policy import ActorCritic
-from src.trainer import TrainerForPpo
+from src.trainer import TrainerForActorCritic
 from src.collector import BufferCollector
 from src.env import create_multiprocess_env
 
@@ -32,21 +34,22 @@ def run(
         [random.randint(0, 1e5) for _ in range(args.num_envs)]
     )
     collector = BufferCollector(args, env=env, policy=policy)
-    trainer = TrainerForPpo(args, policy=policy)
+    optimizer = torch.optim.Adam(policy.parameters(), lr=args.lr)
+    trainer = TrainerForActorCritic(args, policy=policy, optimizer=optimizer)
     if ckpt_file is not None:
         trainer.load(ckpt_file)
 
     for epoch in range(args.epochs):
         rollout_buffer = collector.collect()
-        trainer.train(rollout_buffer)
+        trainer.forward(rollout_buffer)
 
         if epoch % 100 == 0:
             seed_set = [random.randint(0, 1e5) for _ in range(args.num_envs)]
             print(f"Epoch {epoch} of {args.epochs}. Resetting random seeds for environments: ", seed_set)
             collector.renew(create_multiprocess_env(seed_set))
-            trainer.save(save_dir, f"model-{epoch}")
+            trainer.save(os.path.join(save_dir, str(epoch)))
 
-    trainer.save(save_dir, "model-final")
+    trainer.save(os.path.join(save_dir, str(args.epochs)))
 
 
 if __name__ == '__main__':
