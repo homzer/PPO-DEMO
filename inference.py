@@ -9,11 +9,12 @@ from src.env import SnakeEnv
 from src.policy import ActorCritic
 
 
-def run(ckpt_file: str = "results/model-480.bin"):
+def run(ckpt_file: str = None):
     args = ModelArgs()
     model = ActorCritic(args.observation_space, args.num_actions)
-    model.load_state_dict(torch.load(ckpt_file))
-    model.cuda()
+    if ckpt_file is not None:
+        model.load(ckpt_file)
+    model.cuda() if torch.cuda.is_available() else model.cpu()
     env = SnakeEnv(seed=random.randint(1, 1e5), silent_mode=False)
 
     for episode in range(10):

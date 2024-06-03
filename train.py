@@ -30,7 +30,7 @@ def run(
         observation_space=args.observation_space,
         num_actions=args.num_actions
     )
-    policy.cuda()
+    policy.cuda() if torch.cuda.is_available() else policy.cpu()
     env = create_multiprocess_env(
         [random.randint(0, 1e5) for _ in range(args.num_envs)]
     )
