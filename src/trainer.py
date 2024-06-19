@@ -134,7 +134,7 @@ class KLDivTrainerForActorCritic(Trainer):
         self._back_propagation(loss)
 
         Outputs = collections.namedtuple("TrainerOutputs", ["loss", "kl_loss", "value_loss"])
-        return Outputs(loss=loss.detach().cpu().item(), kl_loss=kl_loss, value_loss=value_loss)
+        return Outputs(loss=loss.item(), kl_loss=kl_loss.item(), value_loss=value_loss.item())
 
     def predict(self, observation, action_masks=None):
         observation = torch.tensor(observation, dtype=torch.float32, device=self.args.device)
