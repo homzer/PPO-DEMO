@@ -52,12 +52,13 @@ class TrainerForActorCritic(Trainer):
         super().__init__(policy, optimizer)
         self.args = args
         self.clip_range = 0.07
+        self.policy = policy
 
     def forward(self, rollout_data: MaskableRolloutBufferSamples):
         self.policy.train()
 
         actions = rollout_data.actions.long().flatten()
-        values, log_prob, entropy = self.policy.evaluate_actions(
+        values, log_prob, entropy, logits = self.policy.evaluate_actions(
             obs=rollout_data.observations,
             actions=actions,
             action_masks=rollout_data.action_masks
@@ -111,11 +112,12 @@ class KLDivTrainerForActorCritic(Trainer):
     def forward(self, rollout_data: MaskableRolloutBufferSamples):
         self.policy.train()
 
-        actions = rollout_data.actions.long().flatten()  # [b]
-        logits = self.policy.forward_logits(
+        actions = rollout_data.actions.long().flatten()
+        values, log_prob, entropy, logits = self.policy.evaluate_actions(
             obs=rollout_data.observations,
+            actions=actions,
             action_masks=rollout_data.action_masks
-        )  # [b, v]
+        )
 
         # Normalize advantage
         advantages = rollout_data.advantages  # [b]
@@ -123,12 +125,16 @@ class KLDivTrainerForActorCritic(Trainer):
         signs = torch.sign(advantages) * 1e5
         labels = logits.detach().clone()
         labels[torch.arange(labels.size(0)), actions] = signs
+        kl_loss = self.criterion.forward(logits, labels)
 
-        loss = self.criterion.forward(logits, labels)
+        values = values.flatten()
+        value_loss = F.mse_loss(rollout_data.returns, values)
+
+        loss = value_loss + kl_loss
         self._back_propagation(loss)
 
-        Outputs = collections.namedtuple("TrainerOutputs", ["loss"])
-        return Outputs(loss=loss.detach().cpu().item())
+        Outputs = collections.namedtuple("TrainerOutputs", ["loss", "kl_loss", "value_loss"])
+        return Outputs(loss=loss.detach().cpu().item(), kl_loss=kl_loss, value_loss=value_loss)
 
     def predict(self, observation, action_masks=None):
         observation = torch.tensor(observation, dtype=torch.float32, device=self.args.device)
@@ -136,12 +142,3 @@ class KLDivTrainerForActorCritic(Trainer):
             observation = observation[None]
         # observation = _reshape_observation(observation)
         return self.policy.predict(observation, action_masks=action_masks)
-
-
-class TrainerForActor(Trainer):
-    def __init__(self, policy: Actor, optimizer: torch.optim.Optimizer):
-        super().__init__(policy, optimizer)
-
-    def forward(self, obs: torch.Tensor, action_masks: torch.Tensor = None):
-        self.policy.train()
-        self.policy.forward(obs, action_masks)

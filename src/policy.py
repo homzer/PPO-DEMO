@@ -86,35 +86,23 @@ class ActorCritic(Model):
         features = self.feature_extractor.forward(obs.float())
         return self.value_net.forward(features)
 
-    def forward_logits(self, obs, action_masks):
-        features = self.feature_extractor.forward(obs.float())
-        logits = self.action_net.forward(features)
-        if action_masks is not None:
-            action_masks = torch.as_tensor(
-                action_masks, dtype=torch.float, device=logits.device
-            ).reshape(logits.shape)
-            logits += (1 - action_masks) * -1e5
-        logits = logits_normalize(logits)
-        return logits
-
     def evaluate_actions(self, obs, actions, action_masks):
         features = self.feature_extractor.forward(obs.float())
         values = self.value_net.forward(features)
         logits = self.action_net.forward(features)
-        logits = logits_normalize(logits)
         if action_masks is not None:
             action_masks = torch.as_tensor(
                 action_masks, dtype=torch.float, device=logits.device
             ).reshape(logits.shape)
             logits += (1 - action_masks) * -1e8
-            logits = logits_normalize(logits)
+        logits = logits_normalize(logits)
         probs = torch.softmax(logits, dim=-1)  # [..., 4]
         action_logits = torch.gather(logits, dim=-1, index=actions.unsqueeze(-1)).squeeze(-1)
         logits_times_probs = logits * probs
         if action_masks is not None:
             logits_times_probs = logits_times_probs * action_masks
 
-        return values, action_logits, - logits_times_probs.sum(-1)
+        return values, action_logits, - logits_times_probs.sum(-1), logits
 
     def predict(self, observation, action_masks=None):
         self.eval()

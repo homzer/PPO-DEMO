@@ -54,6 +54,8 @@ def run(
         timer.step()
         print("\n===============================")
         print("train/loss", trainer_outputs.loss)
+        print("train/kl_loss", trainer_outputs.kl_loss)
+        print("train/value_loss", trainer_outputs.value_loss)
         print("===============================")
 
         if epoch % 100 == 0:
