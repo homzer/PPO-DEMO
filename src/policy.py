@@ -86,6 +86,17 @@ class ActorCritic(Model):
         features = self.feature_extractor.forward(obs.float())
         return self.value_net.forward(features)
 
+    def forward_logits(self, obs, action_masks):
+        features = self.feature_extractor.forward(obs.float())
+        logits = self.action_net.forward(features)
+        if action_masks is not None:
+            action_masks = torch.as_tensor(
+                action_masks, dtype=torch.float, device=logits.device
+            ).reshape(logits.shape)
+            logits += (1 - action_masks) * -1e5
+        logits = logits_normalize(logits)
+        return logits
+
     def evaluate_actions(self, obs, actions, action_masks):
         features = self.feature_extractor.forward(obs.float())
         values = self.value_net.forward(features)
@@ -131,7 +142,11 @@ class Actor(Model):
         self.feature_extractor = NatureCNN(observation_space, features_dim)
         self.action_net = nn.Linear(features_dim, num_actions)
 
-    def forward(self, obs, action_masks: np.ndarray = None):
+    def forward(self, obs: torch.Tensor, action_masks: np.ndarray = None) -> torch.Tensor:
+        if len(obs.shape) == 3:
+            obs = obs[None]
+        assert len(obs.shape) == 4
+        obs = obs.to(next(self.parameters()).device)
         features = self.feature_extractor.forward(obs.float())
         logits = self.action_net.forward(features)
         if action_masks is not None:

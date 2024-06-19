@@ -9,7 +9,7 @@ from src.args import ModelArgs
 from src.collector import ParallelBufferCollector
 from src.env import SnakeEnv
 from src.policy import ActorCritic
-from src.trainer import TrainerForActorCritic
+from src.trainer import KLDivTrainerForActorCritic
 from src.utils import Timer, set_seed
 
 
@@ -40,7 +40,7 @@ def run(
     envs = [SnakeEnv(seed=random.randint(0, 1000)) for _ in range(args.num_envs)]
     collector = ParallelBufferCollector(args, envs=envs, policy=policy)
     optimizer = torch.optim.Adam(policy.parameters(), lr=args.lr)
-    trainer = TrainerForActorCritic(args, policy=policy, optimizer=optimizer)
+    trainer = KLDivTrainerForActorCritic(args, policy=policy, optimizer=optimizer)
     if ckpt_file is not None:
         trainer.load(ckpt_file)
 
@@ -53,9 +53,6 @@ def run(
                 trainer_outputs = trainer.forward(rollout_data)
         timer.step()
         print("\n===============================")
-        print("train/entropy_loss", trainer_outputs.entropy_loss)
-        print("train/policy_gradient_loss", trainer_outputs.policy_loss)
-        print("train/value_loss", trainer_outputs.value_loss)
         print("train/loss", trainer_outputs.loss)
         print("===============================")
 

@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 from src.args import ModelArgs
 from src.buffer import MaskableRolloutBufferSamples
+from src.criterion import KLDivLoss
 from src.policy import ActorCritic, Model, Actor
 
 
@@ -19,12 +20,31 @@ class Trainer:
         self.optimizer.step()
         self.optimizer.zero_grad()
 
-    def load(self, ckpt_file: str):
-        self.policy.load(ckpt_file)
+    def save_optimizer(self, save_dir: str):
+        os.makedirs(save_dir, exist_ok=True)
+        print(f'Saving optimizer to {save_dir} ......')
+        torch.save(self.optimizer.state_dict(), os.path.join(save_dir, f'optimizer.bin'))
+        print(f'Saving done !')
+
+    def load_optimizer(self, ckpt_file: str):
+        if os.path.exists(ckpt_file):
+            return
+        print(f'Loading optimizer from {ckpt_file} .....')
+        state_dict = torch.load(ckpt_file)
+        self.optimizer.load_state_dict(state_dict)
+        for state in self.optimizer.state.values():
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state[k] = v.cuda() if torch.cuda.is_available() else v
+        print(f'Loading done !')
+
+    def load(self, ckpt_dir: str):
+        self.policy.load(os.path.join(ckpt_dir, "model.bin"))
+        self.load_optimizer(os.path.join(ckpt_dir, "optimizer.bin"))
 
     def save(self, save_dir: str):
-        os.makedirs(save_dir, exist_ok=True)
-        torch.save(self.policy.state_dict(), os.path.join(save_dir, f"model.bin"))
+        self.policy.save(save_dir)
+        self.save_optimizer(save_dir)
 
 
 class TrainerForActorCritic(Trainer):
@@ -72,6 +92,43 @@ class TrainerForActorCritic(Trainer):
             value_loss=value_loss.detach().cpu().item(),
             loss=loss.detach().cpu().item()
         )
+
+    def predict(self, observation, action_masks=None):
+        observation = torch.tensor(observation, dtype=torch.float32, device=self.args.device)
+        if len(observation.shape) == 3:
+            observation = observation[None]
+        # observation = _reshape_observation(observation)
+        return self.policy.predict(observation, action_masks=action_masks)
+
+
+class KLDivTrainerForActorCritic(Trainer):
+    def __init__(self, args: ModelArgs, policy: ActorCritic, optimizer: torch.optim.Optimizer):
+        super().__init__(policy, optimizer)
+        self.args = args
+        self.policy = policy
+        self.criterion = KLDivLoss()
+
+    def forward(self, rollout_data: MaskableRolloutBufferSamples):
+        self.policy.train()
+
+        actions = rollout_data.actions.long().flatten()  # [b]
+        logits = self.policy.forward_logits(
+            obs=rollout_data.observations,
+            action_masks=rollout_data.action_masks
+        )  # [b, v]
+
+        # Normalize advantage
+        advantages = rollout_data.advantages  # [b]
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        signs = torch.sign(advantages) * 1e5
+        labels = logits.detach().clone()
+        labels[torch.arange(labels.size(0)), actions] = signs
+
+        loss = self.criterion.forward(logits, labels)
+        self._back_propagation(loss)
+
+        Outputs = collections.namedtuple("TrainerOutputs", ["loss"])
+        return Outputs(loss=loss.detach().cpu().item())
 
     def predict(self, observation, action_masks=None):
         observation = torch.tensor(observation, dtype=torch.float32, device=self.args.device)

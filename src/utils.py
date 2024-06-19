@@ -46,3 +46,31 @@ class Timer:
         self.ticktock = 0
         self.last = None
         self.avg_time = 0
+
+
+def powmax(tensor, exponent=1, dim=-1, eps=7e-5):
+    """ Similar to softmax, perform power max on vectors along one specific dimension. """
+    numerator = torch.pow(tensor, exponent=exponent)
+    denominator = torch.sum(numerator, dim=dim, keepdim=True)
+    return numerator / (denominator + eps)
+
+
+def masked_mean(x, mask=None, dim: int = -1, keepdim: bool = False, eps: float = 1e-12):
+    if type(x) is torch.Tensor:
+        if mask is None:
+            mask = torch.full_like(x, fill_value=True)
+        assert x.shape == mask.shape
+        mask = mask.to(x.dtype)
+        return torch.sum(
+            x * mask, dim=dim, keepdim=keepdim
+        ) / (torch.sum(mask, dim=dim, keepdim=keepdim) + eps)
+    elif type(x) is np.ndarray:
+        if mask is None:
+            mask = np.full_like(x, fill_value=True)
+        assert x.shape == mask.shape
+        mask = mask.astype(x.dtype)
+        return np.sum(
+            x * mask, axis=dim, keepdims=keepdim
+        ) / (np.sum(mask, axis=dim, keepdims=keepdim) + eps)
+    else:
+        raise TypeError
