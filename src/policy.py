@@ -15,7 +15,7 @@ class Model(nn.Module):
 
     def load(self, ckpt_file: str):
         print(f"Loading model from {ckpt_file} ......")
-        self.load_state_dict(torch.load(ckpt_file))
+        self.load_state_dict(torch.load(ckpt_file, map_location="cpu"), strict=False)
         print("Loading done")
 
     def save(self, save_dir: str):
