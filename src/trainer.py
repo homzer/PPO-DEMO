@@ -68,6 +68,15 @@ class TrainerForActorCritic(Trainer):
         advantages = rollout_data.advantages
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
+        advantages_weights = torch.sigmoid(advantages)
+
+        # test
+        import matplotlib.pyplot as plt
+        fig, axs = plt.subplots(1, 2, figsize=(14, 7))
+        axs[0].hist(advantages.numpy(), bins=100)
+        axs[1].hist(advantages_weights.numpy(), bins=100)
+        plt.show()
+
         # ratio between old and new policy, should be one at the first iteration
         ratio = torch.exp(log_prob - rollout_data.old_log_prob)
         # clipped surrogate loss
@@ -122,6 +131,8 @@ class KLDivTrainerForActorCritic(Trainer):
         # Normalize advantage
         advantages = rollout_data.advantages  # [b]
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        advantages_weights = torch.sigmoid(advantages)
+
         signs = torch.sign(advantages) * 1e5
         labels = logits.detach().clone()
         labels[torch.arange(labels.size(0)), actions] = signs
