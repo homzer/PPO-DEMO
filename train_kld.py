@@ -19,7 +19,8 @@ def run(
         epochs: int = 1000,
         n_update_epochs: int = 4,
         n_collect_steps: int = 4096,
-        batch_size: int = 512
+        batch_size: int = 512,
+        kl_coef: float = 1.0
 ):
     set_seed()
     num_envs = mp.cpu_count()
@@ -28,7 +29,8 @@ def run(
         num_envs=num_envs,
         n_update_epochs=n_update_epochs,
         n_collect_steps=n_collect_steps,
-        batch_size=batch_size
+        batch_size=batch_size,
+        kl_coef=kl_coef
     )
     print(f"Found {args.num_envs} CPUs.")
     policy = ActorCritic(

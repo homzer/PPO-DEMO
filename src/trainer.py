@@ -127,7 +127,7 @@ class KLDivTrainerForActorCritic(Trainer):
         labels = logits.detach().clone()
         labels[torch.arange(labels.size(0)), actions] = signs
         kl_loss = self.criterion.forward(logits, labels)
-        kl_loss = self.args.kl_coef * torch.mean(advantages * kl_loss.sequeeze(-1))
+        kl_loss = self.args.kl_coef * torch.mean(torch.abs(advantages) * kl_loss.squeeze(-1))
 
         values = values.flatten()
         value_loss = self.args.vf_coef * F.mse_loss(rollout_data.returns, values)
