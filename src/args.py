@@ -13,6 +13,7 @@ class ModelArgs:
     batch_size: int = 1024
     device: str = "cuda"
     ent_coef: float = 0.0
-    vf_coef: float = 0.5
+    vf_coef: float = 1.0
+    kl_coef: float = 50.0
     gamma: float = 0.94
     gae_lambda: float = 0.95

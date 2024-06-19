@@ -27,7 +27,7 @@ class Trainer:
         print(f'Saving done !')
 
     def load_optimizer(self, ckpt_file: str):
-        if os.path.exists(ckpt_file):
+        if not os.path.exists(ckpt_file):
             return
         print(f'Loading optimizer from {ckpt_file} .....')
         state_dict = torch.load(ckpt_file)
@@ -68,15 +68,6 @@ class TrainerForActorCritic(Trainer):
         advantages = rollout_data.advantages
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-        advantages_weights = torch.sigmoid(advantages)
-
-        # test
-        import matplotlib.pyplot as plt
-        fig, axs = plt.subplots(1, 2, figsize=(14, 7))
-        axs[0].hist(advantages.numpy(), bins=100)
-        axs[1].hist(advantages_weights.numpy(), bins=100)
-        plt.show()
-
         # ratio between old and new policy, should be one at the first iteration
         ratio = torch.exp(log_prob - rollout_data.old_log_prob)
         # clipped surrogate loss
@@ -116,7 +107,7 @@ class KLDivTrainerForActorCritic(Trainer):
         super().__init__(policy, optimizer)
         self.args = args
         self.policy = policy
-        self.criterion = KLDivLoss()
+        self.criterion = KLDivLoss(return_scalar=False)
 
     def forward(self, rollout_data: MaskableRolloutBufferSamples):
         self.policy.train()
@@ -131,15 +122,15 @@ class KLDivTrainerForActorCritic(Trainer):
         # Normalize advantage
         advantages = rollout_data.advantages  # [b]
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-        advantages_weights = torch.sigmoid(advantages)
 
         signs = torch.sign(advantages) * 1e5
         labels = logits.detach().clone()
         labels[torch.arange(labels.size(0)), actions] = signs
         kl_loss = self.criterion.forward(logits, labels)
+        kl_loss = self.args.kl_coef * torch.mean(advantages * kl_loss.sequeeze(-1))
 
         values = values.flatten()
-        value_loss = F.mse_loss(rollout_data.returns, values)
+        value_loss = self.args.vf_coef * F.mse_loss(rollout_data.returns, values)
 
         loss = value_loss + kl_loss
         self._back_propagation(loss)

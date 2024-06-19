@@ -14,7 +14,7 @@ from src.utils import Timer, set_seed
 
 
 def run(
-        ckpt_file: str = None,  # "results/model-280.bin"
+        ckpt_dir: str = None,  # "results/model-280.bin"
         save_dir: str = 'results',
         epochs: int = 1000,
         n_update_epochs: int = 4,
@@ -41,8 +41,8 @@ def run(
     collector = ParallelBufferCollector(args, envs=envs, policy=policy)
     optimizer = torch.optim.Adam(policy.parameters(), lr=args.lr)
     trainer = KLDivTrainerForActorCritic(args, policy=policy, optimizer=optimizer)
-    if ckpt_file is not None:
-        trainer.load(ckpt_file)
+    if ckpt_dir is not None:
+        trainer.load(ckpt_dir)
 
     timer = Timer(args.epochs)
     for epoch in range(args.epochs):
