@@ -9,7 +9,7 @@ from src.env import SnakeEnv
 from src.policy import ActorCritic
 
 
-def run(ckpt_file: str = None):
+def run(ckpt_file: str = None, temperature: float = 1.0):
     args = ModelArgs()
     model = ActorCritic(args.observation_space, args.num_actions)
     if ckpt_file is not None:
@@ -25,7 +25,7 @@ def run(ckpt_file: str = None):
         print(f"=================== Episode {episode + 1} ==================")
         while not done:
             obs = torch.tensor(obs, dtype=torch.float32)[None]
-            action = model.predict(obs, action_masks=env.get_action_mask())
+            action = model.predict(obs, action_masks=env.get_action_mask(), tau=temperature)
             obs, reward, done, info = env.step(action)
             steps += 1
             if done:

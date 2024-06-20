@@ -65,7 +65,7 @@ class ActorCritic(Model):
         self.action_net = nn.Linear(features_dim, num_actions)
         self.value_net = nn.Linear(features_dim, 1)
 
-    def forward(self, obs, action_masks: np.ndarray = None):
+    def forward(self, obs, action_masks: np.ndarray = None, tau: float = 1.0):
         features = self.feature_extractor.forward(obs.float())
         values = self.value_net.forward(features)
         logits = self.action_net.forward(features)
@@ -76,7 +76,7 @@ class ActorCritic(Model):
             ).reshape(logits.shape)
             logits += (1 - action_masks) * -1e8
             logits = logits_normalize(logits)
-        probs = torch.softmax(logits, dim=-1)  # [..., 4]
+        probs = torch.softmax(logits / tau, dim=-1)  # [..., 4]
         actions = torch.multinomial(probs, num_samples=1).squeeze()
         action_logits = torch.gather(logits, dim=-1, index=actions.unsqueeze(-1)).squeeze(-1)
 
@@ -104,7 +104,7 @@ class ActorCritic(Model):
 
         return values, action_logits, - logits_times_probs.sum(-1), logits
 
-    def predict(self, observation, action_masks=None):
+    def predict(self, observation, action_masks=None, tau: float = 1.0):
         self.eval()
 
         with torch.no_grad():
@@ -118,7 +118,7 @@ class ActorCritic(Model):
                 ).reshape(logits.shape)
                 logits += (1 - action_masks) * -1e8
                 logits = logits_normalize(logits)
-            probs = torch.softmax(logits, dim=-1)
+            probs = torch.softmax(logits / tau, dim=-1)
             actions = torch.multinomial(probs, num_samples=1).squeeze()
         actions = actions.cpu().numpy()
         return actions

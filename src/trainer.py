@@ -123,9 +123,8 @@ class KLDivTrainerForActorCritic(Trainer):
         advantages = rollout_data.advantages  # [b]
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-        signs = torch.sign(advantages) * 1e5
         labels = logits.detach().clone()
-        labels[torch.arange(labels.size(0)), actions] = signs
+        labels[torch.arange(labels.size(0)), actions] = torch.sign(advantages) * 1e5
         kl_loss = self.criterion.forward(logits, labels)
         kl_loss = self.args.kl_coef * torch.mean(torch.abs(advantages) * kl_loss.squeeze(-1))
 
