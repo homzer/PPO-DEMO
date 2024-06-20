@@ -44,7 +44,7 @@ def run(
     optimizer = torch.optim.Adam(policy.parameters(), lr=args.lr)
     trainer = KLDivTrainerForActorCritic(args, policy=policy, optimizer=optimizer)
     if ckpt_dir is not None:
-        trainer.load(ckpt_dir)
+        policy.load(os.path.join(ckpt_dir, "model.bin"))
 
     timer = Timer(args.epochs)
     for epoch in range(args.epochs):
