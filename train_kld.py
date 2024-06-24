@@ -20,7 +20,9 @@ def run(
         n_update_epochs: int = 4,
         n_collect_steps: int = 4096,
         batch_size: int = 512,
-        kl_coef: float = 1.0
+        kl_coef: float = 1.0,
+        temperature: float = 0.1,
+        weighted_kl: bool = True
 ):
     set_seed()
     num_envs = mp.cpu_count()
@@ -30,7 +32,9 @@ def run(
         n_update_epochs=n_update_epochs,
         n_collect_steps=n_collect_steps,
         batch_size=batch_size,
-        kl_coef=kl_coef
+        kl_coef=kl_coef,
+        tau=temperature,
+        weighted_kl=weighted_kl
     )
     print(f"Found {args.num_envs} CPUs.")
     policy = ActorCritic(

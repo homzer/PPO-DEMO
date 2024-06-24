@@ -17,3 +17,5 @@ class ModelArgs:
     kl_coef: float = 1.0
     gamma: float = 0.94
     gae_lambda: float = 0.95
+    tau: float = 1.0
+    weighted_kl: bool = True

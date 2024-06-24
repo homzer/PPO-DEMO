@@ -125,7 +125,7 @@ class ParallelBufferCollector:
                 # obs_tensor = _reshape_observation(obs_tensor)
                 action_masks = np.stack([env.get_action_mask().squeeze() for env in self.envs])
                 actions, values, log_probs = self.policy.forward(
-                    obs_tensor, action_masks=action_masks
+                    obs_tensor, action_masks=action_masks, tau=self.args.tau
                 )
             actions = actions.cpu().numpy()
             values = values.flatten().cpu().numpy()
