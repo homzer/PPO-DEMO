@@ -1,10 +1,7 @@
-from typing import Union, List
+from typing import List
 
 import numpy as np
-import gym
 import torch
-from sb3_contrib.common.maskable.utils import get_action_masks
-from stable_baselines3.common import vec_env
 from tqdm import trange
 
 from src.args import ModelArgs
@@ -16,14 +13,14 @@ from src.policy import ActorCritic, Actor
 class BufferCollector:
     def __init__(
             self, args: ModelArgs,
-            env: Union[gym.Env, vec_env.VecEnv],
+            env: SnakeEnv,
             policy: ActorCritic
     ):
         self.args = args
         self.env = env
         self.policy = policy
 
-    def renew(self, env: Union[gym.Env, vec_env.VecEnv]):
+    def renew(self, env: SnakeEnv):
         self.env = env
 
     def collect(self) -> RolloutBuffer:
@@ -50,7 +47,7 @@ class BufferCollector:
                     last_obs, device=self.args.device
                 )
                 # obs_tensor = _reshape_observation(obs_tensor)
-                action_masks = get_action_masks(self.env)
+                action_masks = self.env.get_action_mask()
                 actions, values, log_probs = self.policy.forward(
                     obs_tensor, action_masks=action_masks
                 )

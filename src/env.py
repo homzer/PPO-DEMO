@@ -1,11 +1,7 @@
 import math
-from typing import List
 
 import gym
 import numpy as np
-from sb3_contrib.common.wrappers import ActionMasker
-from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import SubprocVecEnv
 
 from src.game import SnakeGame
 
@@ -182,18 +178,3 @@ class SnakeEnv(gym.Env):
 
         obs = np.transpose(obs, (2, 0, 1))
         return obs
-
-
-def make_env(seed=0, board_size=12, silent_mode=True):
-    def _init():
-        env = SnakeEnv(seed=seed, board_size=board_size, silent_mode=silent_mode)
-        env = ActionMasker(env, SnakeEnv.get_action_mask)
-        env = Monitor(env)
-        env.seed(seed)
-        return env
-
-    return _init
-
-
-def create_multiprocess_env(seed_set: List[int]):
-    return SubprocVecEnv([make_env(seed=s) for s in seed_set])

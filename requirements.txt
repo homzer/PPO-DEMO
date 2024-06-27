@@ -1,8 +1,6 @@
 fire
 torch
 numpy
-sb3_contrib
-gym
-stable_baselines3
-pygame
+gym==0.22.0
+pygame==2.3.0
 tqdm
