@@ -19,10 +19,11 @@ def run(
         epochs: int = 1000,
         n_update_epochs: int = 4,
         n_collect_steps: int = 4096,
-        batch_size: int = 512
+        batch_size: int = 512,
+        num_envs: int = None
 ):
     set_seed()
-    num_envs = mp.cpu_count()
+    num_envs = mp.cpu_count() if num_envs is None else num_envs
     args = ModelArgs(
         epochs=epochs,
         num_envs=num_envs,
@@ -57,7 +58,7 @@ def run(
         print("train/policy_gradient_loss", trainer_outputs.policy_loss)
         print("train/value_loss", trainer_outputs.value_loss)
         print("train/loss", trainer_outputs.loss)
-        print("===============================")
+        print("=================================")
 
         if epoch % 100 == 0:
             seed_set = [random.randint(0, 1000) for _ in range(args.num_envs)]
