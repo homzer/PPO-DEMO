@@ -120,7 +120,7 @@ class ParallelBufferCollector:
         for _ in trange(self.args.n_collect_steps):
             with torch.no_grad():
                 obs_tensor = torch.tensor(
-                    last_obs, device=self.args.device
+                    last_obs, device=self.args.device, dtype=torch.long
                 )
                 # obs_tensor = _reshape_observation(obs_tensor)
                 action_masks = np.stack([env.get_action_mask().squeeze() for env in self.envs])
