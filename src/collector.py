@@ -156,7 +156,7 @@ class ParallelBufferCollector:
             last_episode_starts = dones
 
         with torch.no_grad():
-            last_obs = torch.tensor(last_obs, device=self.args.device)
+            last_obs = torch.tensor(last_obs, device=self.args.device, dtype=torch.long)
             # last_obs = _reshape_observation(last_obs)
             last_values = self.policy.predict_values(last_obs)
         rollout_buffer.compute_returns_and_advantage(
